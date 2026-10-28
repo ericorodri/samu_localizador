@@ -1,0 +1,33 @@
+name: Deploy do App SAMU no GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar o Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Compilar o Flutter Web
+        run: flutter build web --base-href /samu_localizador/
+
+      - name: Upload dos arquivos compilados
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Publicar no GitHub Pages
+        uses: actions/deploy-pages@v4
