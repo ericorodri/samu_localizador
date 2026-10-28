@@ -15,10 +15,7 @@ class AppSamu extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'SAMU Localizador',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.red,
-          brightness: Brightness.dark,
-        ),
+        brightness: Brightness.dark,
         useMaterial3: true,
       ),
       home: const TelaPrincipal(),
@@ -99,141 +96,133 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF110101), 
-              Color(0xFF080000), 
-              Color(0xFF000000), 
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 30.0, horizontal: 20.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    children: [
-                      Text(
-                        "S A M U   1 9 2",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 2,
-                        ),
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 35.0, horizontal: 20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Topo da tela: Títulos
+                const Column(
+                  children: [
+                    Text(
+                      "S A M U   1 9 2",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 2,
                       ),
-                      SizedBox(height: 5),
-                      Text(
-                        "SISTEMA ÚNICO DE SAÚDE",
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  GestureDetector(
-                    onTap: _carregando ? null : acionarEmergencia,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 250,
-                          height: 250,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.red.withOpacity(0.35),
-                                spreadRadius: 15,
-                                blurRadius: 40,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          width: 240,
-                          height: 240,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1A0202), 
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.red,
-                              width: 4,
-                            ),
-                          ),
-                          child: Center(
-                            child: _carregando
-                                ? const CircularProgressIndicator(color: Colors.red)
-                                : const Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.emergency,
-                                        size: 75,
-                                        color: Colors.white,
-                                      ),
-                                      SizedBox(height: 10),
-                                      Text(
-                                        "SAMU",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 36,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                      Text(
-                                        "192",
-                                        style: TextStyle(
-                                          color: Colors.red,
-                                          fontSize: 48,
-                                          height: 0.9,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ),
-                      ],
                     ),
-                  ),
+                    SizedBox(height: 5),
+                    Text(
+                      "SISTEMA ÚNICO DE SAÚDE",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
 
-                  Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.red.withOpacity(0.2)),
-                        ),
-                        child: Text(
-                          _statusMensagem,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
+                // Centro da tela: Imagem do Símbolo Fixa (Não clicável) com brilho
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 250,
+                      height: 250,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.25),
+                            spreadRadius: 10,
+                            blurRadius: 35,
                           ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 230,
+                      height: 230,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Image.asset(
+                        'assets/simbolosamuapp.jpg',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.local_hospital, size: 80, color: Colors.red);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Parte inferior: Botão de Emergência e Caixa de Status
+                Column(
+                  children: [
+                    // Novo Botão "Chamar Ambulância"
+                    ElevatedButton.icon(
+                      onPressed: _carregando ? null : acionarEmergencia,
+                      icon: _carregando 
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Icon(Icons.phone_in_talk, color: Colors.white),
+                      label: const Text(
+                        "CHAMAR AMBULÂNCIA",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade700,
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        minimumSize: const Size(double.infinity, 55), // Botão largo e fácil de clicar
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        elevation: 5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Caixa de Status da mensagem
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D0D0D),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: Colors.red.withOpacity(0.15)),
+                      ),
+                      child: Text(
+                        _statusMensagem,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
