@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const AppSamu());
@@ -64,23 +66,37 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         _statusMensagem = "ENVIANDO LOCALIZAÇÃO PARA A CENTRAL...";
       });
 
-      // 3. [AQUI ENTRARÁ O ENVIO INVISÍVEL PARA O BANCO DE DADOS NO PRÓXIMO PASSO]
-      // Por enquanto, simulamos uma espera rápida de envio pela rede
-      await Future.delayed(const Duration(seconds: 1));
+      // 3. Envio invisível e anônimo para o Firebase Realtime Database
+      final DateTime agora = DateTime.now();
+      final String idChamado = agora.millisecondsSinceEpoch.toString();
+      final String linkGoogleMaps = "https://google.com{posicao.latitude},${posicao.longitude}";
+
+      // URL corrigida de acordo com o painel real do seu projeto
+      final url = Uri.parse('https://firebaseio.com');
+      
+      await http.put(
+        url,
+        body: json.encode({
+          'latitude': posicao.latitude,
+          'longitude': posicao.longitude,
+          'horario': agora.toIso8601String(),
+          'mapa': linkGoogleMaps,
+        }),
+      );
 
       setState(() {
         _statusMensagem = "LOCALIZAÇÃO ENVIADA! LIGANDO PARA O 192...";
       });
 
       // 4. Abre imediatamente o discador nativo chamando o 192
-      final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
-      if (await canLaunchUrl(telefoneUri)) {
-        await launchUrl(telefoneUri);
+      final Uri telephoneUri = Uri(scheme: 'tel', path: '192');
+      if (await canLaunchUrl(telephoneUri)) {
+        await launchUrl(telephoneUri);
       }
 
     } catch (e) {
       setState(() {
-        _statusMensagem = "ERRO AO ACIONAR O GPS OU TELEFONE.";
+        _statusMensagem = "ERRO AO ACIONAR O GPS OU BANCO.";
       });
     } finally {
       setState(() {
@@ -103,7 +119,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                 const Column(
                   children: [
                     Text(
-                      "S A M U   1 9 2",
+                      "S A M U   1 2",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,
