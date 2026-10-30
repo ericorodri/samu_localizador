@@ -64,12 +64,13 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         _statusMensagem = "ENVIANDO MAPA E LIGANDO...";
       });
 
+      // Configuração com o e-mail real da Central do SAMU Criciúma
       final Uri emailUri = Uri(
         scheme: 'mailto',
-        path: 'central.samu@seu-municipio.gov.br',
+        path: 'ro.criciuma@samusc.org.br',
         queryParameters: {
-          'subject': 'URGÊNCIA - Localização de Paciente',
-          'body': 'Mensagem automática de emergência. Link do Google Maps: $mapaLink',
+          'subject': 'URGÊNCIA - Localização de Paciente pelo Aplicativo',
+          'body': 'Mensagem automática de emergência.\nLink com as coordenadas do Google Maps: $mapaLink',
         },
       );
 
@@ -77,6 +78,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         await launchUrl(emailUri);
       }
 
+      // Discador telefônico para o 192
       final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
       if (await canLaunchUrl(telefoneUri)) {
         await launchUrl(telefoneUri);
@@ -104,7 +106,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Topo da tela: Títulos
+                // Topo da tela: Títulos estruturados
                 const Column(
                   children: [
                     Text(
@@ -129,7 +131,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                   ],
                 ),
 
-                // Centro da tela: Imagem do Símbolo Fixa (Não clicável) com brilho
+                // Centro da tela: Imagem do Símbolo Fixa (Não clicável) com brilho integrado
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -166,10 +168,10 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                   ],
                 ),
 
-                // Parte inferior: Botão de Emergência e Caixa de Status
+                // Parte inferior: Botão de Emergência e Caixa de Mensagem
                 Column(
                   children: [
-                    // Novo Botão "Chamar Ambulância"
+                    // Botão "Chamar Ambulância" dedicado
                     ElevatedButton.icon(
                       onPressed: _carregando ? null : acionarEmergencia,
                       icon: _carregando 
@@ -191,7 +193,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red.shade700,
                         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                        minimumSize: const Size(double.infinity, 55), // Botão largo e fácil de clicar
+                        minimumSize: const Size(double.infinity, 55),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
@@ -200,7 +202,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                     ),
                     const SizedBox(height: 20),
                     
-                    // Caixa de Status da mensagem
+                    // Caixa de Status
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       width: double.infinity,
