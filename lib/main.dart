@@ -43,7 +43,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     });
 
     try {
-      // 1. Verifica e solicita permissão de GPS
+      // 1. Verifica permissões de localização
       LocationPermission permissao = await Geolocator.checkPermission();
       if (permissao == LocationPermission.denied) {
         permissao = await Geolocator.requestPermission();
@@ -56,10 +56,12 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         }
       }
 
-      // 2. Captura a localização atual com alta precisão
+      // 2. Captura a localização atual com suporte ideal para Web
       Position posicao = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
       );
 
       setState(() {
@@ -73,12 +75,10 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
       final url = Uri.parse('https://firebaseio.com');
       
-      // Enviamos com os cabeçalhos corretos para o navegador do celular não bloquear
       await http.post(
         url,
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
         },
         body: json.encode({
           'latitude': posicao.latitude,
@@ -92,7 +92,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         _statusMensagem = "LOCALIZAÇÃO ENVIADA! LIGANDO PARA O 192...";
       });
 
-      // 4. Abre imediatamente o discador nativo chamando o 192
+      // 4. Abre o discador nativo do 192
       final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
       if (await canLaunchUrl(telefoneUri)) {
         await launchUrl(telefoneUri);
@@ -100,7 +100,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
     } catch (e) {
       setState(() {
-        _statusMensagem = "ERRO AO ENVIAR. VERIFIQUE SE O GPS ESTÁ LIGADO.";
+        _statusMensagem = "NAVEGADOR BLOQUEOU O GPS. VERIFIQUE AS PERMISSÕES.";
       });
     } finally {
       setState(() {
@@ -120,7 +120,6 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Correção do título: SAMU 1 9 2 voltando ao normal
                 const Column(
                   children: [
                     Text(
