@@ -66,16 +66,20 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         _statusMensagem = "ENVIANDO LOCALIZAÇÃO PARA A CENTRAL...";
       });
 
-      // 3. Envio invisível e anônimo para o Firebase Realtime Database
+      // 3. Envio robusto para o Firebase Realtime Database
       final DateTime agora = DateTime.now();
       final String idChamado = agora.millisecondsSinceEpoch.toString();
       final String linkGoogleMaps = "https://google.com{posicao.latitude},${posicao.longitude}";
 
-      // URL corrigida de acordo com o painel real do seu projeto
       final url = Uri.parse('https://firebaseio.com');
       
-      await http.put(
+      // Enviamos com os cabeçalhos corretos para o navegador do celular não bloquear
+      await http.post(
         url,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: json.encode({
           'latitude': posicao.latitude,
           'longitude': posicao.longitude,
@@ -89,14 +93,14 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       });
 
       // 4. Abre imediatamente o discador nativo chamando o 192
-      final Uri telephoneUri = Uri(scheme: 'tel', path: '192');
-      if (await canLaunchUrl(telephoneUri)) {
-        await launchUrl(telephoneUri);
+      final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
+      if (await canLaunchUrl(telefoneUri)) {
+        await launchUrl(telefoneUri);
       }
 
     } catch (e) {
       setState(() {
-        _statusMensagem = "ERRO AO ACIONAR O GPS OU BANCO.";
+        _statusMensagem = "ERRO AO ENVIAR. VERIFIQUE SE O GPS ESTÁ LIGADO.";
       });
     } finally {
       setState(() {
@@ -116,10 +120,11 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Correção do título: SAMU 1 9 2 voltando ao normal
                 const Column(
                   children: [
                     Text(
-                      "S A M U   1 2",
+                      "S A M U   1 9 2",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,
