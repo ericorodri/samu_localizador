@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
 
     <!-- Permissões Corrigidas e Movidas para o Lugar Certo -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

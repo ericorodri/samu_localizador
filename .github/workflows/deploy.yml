@@ -1,4 +1,4 @@
-name: Deploy do App SAMU no GitHub Pages
+name: Deploy do App SAMU (Site e APK)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -16,18 +16,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Instalar o Java (Necessário para o Android)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
       - name: Instalar o Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
-      - name: Compilar o Flutter Web
+      - name: Compilar o Flutter Web (Site)
         run: flutter build web --base-href /samu_localizador/
 
-      - name: Upload dos arquivos compilados
+      - name: Compilar o APK (Instalador Android)
+        run: flutter build apk --release
+
+      - name: Upload dos arquivos do Site
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
       - name: Publicar no GitHub Pages
         uses: actions/deploy-pages@v4
+
+      - name: Disponibilizar o arquivo APK para Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: aplicativo-samu-android
+          path: build/app/outputs/flutter-apk/app-release.apk
