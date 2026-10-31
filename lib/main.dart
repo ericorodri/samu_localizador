@@ -36,9 +36,10 @@ class TelaPrincipal extends StatefulWidget {
 
 class _TelaPrincipalState extends State<TelaPrincipal> {
   bool _carregando = false;
+  bool _localizacaoEnviada = false; // Controla o estado do botão
   String _statusMensagem = "SALVAR VIDAS É A NOSSA MISSÃO";
 
-  Future<void> acionarEmergencia() async {
+  Future<void> enviarDadosEmergencia() async {
     setState(() {
       _carregando = true;
       _statusMensagem = "BUSCANDO LOCALIZAÇÃO PELO GPS...";
@@ -46,11 +47,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
     Position? posicao;
 
-    // ETAPA 1: Captura direta do GPS (Abordagem híbrida e robusta para Web/App)
     try {
-      debugPrint("Iniciando captura do GPS...");
-      
-      // Solicita a permissão diretamente caso o navegador precise
       LocationPermission permissao = await Geolocator.checkPermission();
       if (permissao == LocationPermission.denied) {
         permissao = await Geolocator.requestPermission();
@@ -62,8 +59,6 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
           timeLimit: Duration(seconds: 25),
         ),
       );
-
-      debugPrint("GPS Obtido com sucesso: ${posicao.latitude}, ${posicao.longitude}");
     } on PermissionDeniedException catch (e) {
       if (mounted) setState(() => _statusMensagem = "ERRO: PERMISSÃO DE GPS NEGADA.");
       return;
@@ -78,14 +73,13 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       return;
     }
 
-    // ETAPA 2: Envio em Tempo Real para o Firebase via API REST (HTTP POST)
     try {
       if (mounted) setState(() => _statusMensagem = "ENVIANDO LOCALIZAÇÃO PARA A CENTRAL...");
 
       final DateTime agora = DateTime.now();
-      final String linkMaps = "https://www.google.com/maps?q=${posicao.latitude},${posicao.longitude}";
+      final String linkMaps = "https://google.com{posicao.latitude},${posicao.longitude}";
 
-      final url = Uri.parse('https://samu-localizador-default-rtdb.firebaseio.com/chamados.json');
+      final url = Uri.parse('https://firebaseio.com');
       
       final resposta = await http.post(
         url,
@@ -104,23 +98,32 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       );
 
       if (resposta.statusCode != 200) {
-        throw Exception("Código HTTP ${resposta.statusCode}: ${resposta.body}");
+        throw Exception("Código HTTP ${resposta.statusCode}");
       }
 
-      if (mounted) setState(() => _statusMensagem = "LOCALIZAÇÃO ENVIADA COM SUCESSO!");
+      if (mounted) {
+        setState(() {
+          _localizacaoEnviada = true; // Libera o botão para ligar
+          _statusMensagem = "LOCALIZAÇÃO ENVIADA! CLIQUE ABAIXO PARA LIGAR.";
+        });
+      }
     } catch (e) {
-      // Falhas de rede com o banco nunca podem impedir a chamada telefônica de emergência
-      if (mounted) setState(() => _statusMensagem = "FALHA AO SALVAR NO BANCO: ${e.toString()}");
+      if (mounted) {
+        setState(() {
+          _localizacaoEnviada = true; // Mesmo se falhar a rede, libera o clique da ligação
+          _statusMensagem = "FALHA AO SALVAR NO BANCO. CHAME PELO TELEFONE!";
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _carregando = false;
+        });
+      }
     }
+  }
 
-    // ETAPA 3: Disparo Obrigatório do Telefone (Sempre roda independente do banco)
-    if (mounted) {
-      setState(() {
-        _carregando = false;
-        _statusMensagem = "LIGANDO PARA O 192...";
-      });
-    }
-    
+  Future<void> dispararLigacao() async {
     final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
     if (await canLaunchUrl(telefoneUri)) {
       await launchUrl(telefoneUri);
@@ -172,7 +175,9 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.red.withOpacity(0.25),
+                            color: _localizacaoEnviada 
+                                ? Colors.green.withOpacity(0.25) 
+                                : Colors.red.withOpacity(0.25),
                             spreadRadius: 10,
                             blurRadius: 35,
                           ),
@@ -200,18 +205,24 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
                 Column(
                   children: [
+                    // O Botão agora muda dinamicamente de função e cor baseado no envio
                     ElevatedButton.icon(
-                      onPressed: _carregando ? null : acionarEmergencia,
+                      onPressed: _carregando 
+                          ? null 
+                          : (_localizacaoEnviada ? dispararLigacao : enviarDadosEmergencia),
                       icon: _carregando 
                           ? const SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                             )
-                          : const Icon(Icons.phone_in_talk, color: Colors.white),
-                      label: const Text(
-                        "CHAMAR AMBULÂNCIA",
-                        style: TextStyle(
+                          : Icon(
+                              _localizacaoEnviada ? Icons.phone_forwarded : Icons.location_on, 
+                              color: Colors.white
+                            ),
+                      label: Text(
+                        _localizacaoEnviada ? "LIGAR PARA O 192 AGORA" : "ENVIAR LOCALIZAÇÃO",
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -219,7 +230,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
+                        backgroundColor: _localizacaoEnviada ? Colors.green.shade700 : Colors.red.shade700,
                         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                         minimumSize: const Size(double.infinity, 55),
                         shape: RoundedRectangleBorder(
@@ -236,7 +247,11 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF0D0D0D),
                         borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: Colors.red.withOpacity(0.15)),
+                        border: Border.all(
+                          color: _localizacaoEnviada 
+                              ? Colors.green.withOpacity(0.15) 
+                              : Colors.red.withOpacity(0.15)
+                        ),
                       ),
                       child: Text(
                         _statusMensagem,
