@@ -6,6 +6,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
+const String firebaseDatabaseUrl =
+    'https://samu-localizador-default-rtdb.firebaseio.com';
+
 void main() {
   runApp(const AppSamu());
 }
@@ -37,7 +40,7 @@ class TelaPrincipal extends StatefulWidget {
 class _TelaPrincipalState extends State<TelaPrincipal> {
   bool _carregando = false;
   bool _localizacaoEnviada = false;
-  bool _podeLigar = false; 
+  bool _podeLigar = false;
   String _statusMensagem = "SALVAR VIDAS É A NOSSA MISSÃO";
 
   Future<void> enviarDadosEmergencia() async {
@@ -48,20 +51,17 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       _statusMensagem = "BUSCANDO LOCALIZAÇÃO PELO GPS...";
     });
 
-    Position? posicao;
-
     try {
-      final permissao = await Geolocator.checkPermission();
+      LocationPermission permissao = await Geolocator.checkPermission();
+      if (permissao == LocationPermission.denied) {
+        permissao = await Geolocator.requestPermission();
+      }
       if (permissao == LocationPermission.denied ||
           permissao == LocationPermission.deniedForever) {
-        final novaPermissao = await Geolocator.requestPermission();
-        if (novaPermissao == LocationPermission.denied ||
-            novaPermissao == LocationPermission.deniedForever) {
-          throw Exception("Permissão de GPS negada.");
-        }
+        throw Exception("Permissão de GPS negada.");
       }
 
-      posicao = await Geolocator.getCurrentPosition(
+      final Position posicao = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 30),
@@ -69,58 +69,62 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       );
 
       if (!mounted) return;
+
       setState(() {
-        _statusMensagem = "GPS OBTIDO! ENVIANDO PARA A CENTRAL...";
+        _statusMensagem = "GPS OBTIDO! ENVIANDO LOCALIZAÇÃO PARA A CENTRAL...";
       });
 
-      final agora = DateTime.now();
-      final idChamado = agora.microsecondsSinceEpoch.toString();
-      final linkMaps = "https://www.google.com/maps?q=${posicao.latitude},${posicao.longitude}";
+      final DateTime agora = DateTime.now();
+      final String idChamado = agora.microsecondsSinceEpoch.toString();
+      final String linkMaps =
+          "https://www.google.com/maps?q=${posicao.latitude},${posicao.longitude}";
 
-      final dados = {
+      final Map<String, dynamic> dados = {
         "latitude": posicao.latitude,
         "longitude": posicao.longitude,
         "precisao": posicao.accuracy,
         "horario": agora.toIso8601String(),
         "mapa": linkMaps,
-        "origem": kIsWeb ? "Web Navegador" : "Aplicativo Nativo",
+        "origem": kIsWeb ? "Web Navegador" : "Aplicativo Android",
         "status": "NOVO",
       };
 
-      final url = Uri.parse(
-        "https://samu-localizador-default-rtdb.firebaseio.com/chamados/$idChamado.json"
-      );
+      final Uri url =
+          Uri.parse("$firebaseDatabaseUrl/chamados/$idChamado.json");
 
-      final resposta = await http.put(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode(dados),
-      ).timeout(const Duration(seconds: 15));
-
-      debugPrint("FIREBASE STATUS: ${resposta.statusCode}");
+      final resposta = await http
+          .put(
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+            body: jsonEncode(dados),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (resposta.statusCode != 200) {
-        throw Exception("HTTP ${resposta.statusCode}: ${resposta.body}");
+        throw Exception(
+            "Erro Firebase HTTP ${resposta.statusCode}: ${resposta.body}");
       }
 
       if (!mounted) return;
+
       setState(() {
         _localizacaoEnviada = true;
         _podeLigar = true;
-        _statusMensagem = "LOCALIZAÇÃO ENVIADA COM SUCESSO! LIGUE PARA 192.";
+        _statusMensagem =
+            "LOCALIZAÇÃO ENVIADA COM SUCESSO! CLIQUE PARA LIGAR AO 192.";
       });
-
     } catch (e, stackTrace) {
-      debugPrint("ERRO NO ENVIO: $e");
+      debugPrint("ERRO NO PROCESSO: $e");
       debugPrint("DETALHES: $stackTrace");
 
       if (mounted) {
         setState(() {
           _localizacaoEnviada = false;
-          _podeLigar = true; // Segurança operacional garantida: libera o botão mesmo sem rede
-          _statusMensagem = "FALHA NO ENVIO: $e\nLIGUE DIRETO PARA O 192!";
+          _podeLigar = true;
+          _statusMensagem = "FALHA NO ENVIO: $e\nLIGUE DIRETAMENTE PARA O 192!";
         });
       }
     } finally {
@@ -134,18 +138,15 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
   Future<void> dispararLigacao() async {
     final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
-
     try {
-      // Ajuste do Claude: Removido o modo externo para garantir compatibilidade nativa pura
-      final ok = await launchUrl(telefoneUri);
-      
-      if (!ok && mounted) {
+      final bool abriu = await launchUrl(telefoneUri);
+      if (!abriu && mounted) {
         setState(() {
-          _statusMensagem = "NÃO FOI POSSÍVEL ABRIR O DISCADOR. DIGITE 192.";
+          _statusMensagem =
+              "NÃO FOI POSSÍVEL ABRIR O DISCADOR. DIGITE 192 MANUALMENTE.";
         });
       }
     } catch (e) {
-      debugPrint("ERRO AO ABRIR DISCADOR: $e");
       if (mounted) {
         setState(() {
           _statusMensagem = "ERRO AO DISCAR. ABRA O TELEFONE E DIGITE 192.";
@@ -156,12 +157,17 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
   @override
   Widget build(BuildContext context) {
+    final Color corEstado = _podeLigar
+        ? (_localizacaoEnviada ? Colors.green : Colors.orange)
+        : Colors.red;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 35.0, horizontal: 20.0),
+            padding:
+                const EdgeInsets.symmetric(vertical: 35.0, horizontal: 20.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -188,7 +194,6 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                     ),
                   ],
                 ),
-
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -199,9 +204,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: _podeLigar
-                                ? (_localizacaoEnviada ? Colors.green.withOpacity(0.25) : Colors.orange.withOpacity(0.25))
-                                : Colors.red.withOpacity(0.25),
+                            color: corEstado.withOpacity(0.25),
                             spreadRadius: 10,
                             blurRadius: 35,
                           ),
@@ -220,31 +223,38 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                         'assets/simbolosamuapp.jpg',
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.local_hospital, size: 80, color: Colors.red);
+                          return const Icon(Icons.local_hospital,
+                              size: 80, color: Colors.red);
                         },
                       ),
                     ),
                   ],
                 ),
-
                 Column(
                   children: [
                     ElevatedButton.icon(
                       onPressed: _carregando
                           ? null
-                          : (_podeLigar ? dispararLigacao : enviarDadosEmergencia),
+                          : (_podeLigar
+                              ? dispararLigacao
+                              : enviarDadosEmergencia),
                       icon: _carregando
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2),
                             )
                           : Icon(
-                              _podeLigar ? Icons.phone_in_talk : Icons.location_on,
+                              _podeLigar
+                                  ? Icons.phone_in_talk
+                                  : Icons.location_on,
                               color: Colors.white,
                             ),
                       label: Text(
-                        _podeLigar ? "LIGAR PARA O 192 AGORA" : "ENVIAR LOCALIZAÇÃO",
+                        _podeLigar
+                            ? "LIGAR PARA O 192 AGORA"
+                            : "ENVIAR LOCALIZAÇÃO",
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -254,9 +264,12 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _podeLigar
-                            ? (_localizacaoEnviada ? Colors.green.shade700 : Colors.amber.shade900)
+                            ? (_localizacaoEnviada
+                                ? Colors.green.shade700
+                                : Colors.amber.shade900)
                             : Colors.red.shade700,
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 30, vertical: 15),
                         minimumSize: const Size(double.infinity, 55),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
@@ -265,18 +278,14 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: const Color(0xFF0D0D0D),
                         borderRadius: BorderRadius.circular(15),
-                        border: Border.all(
-                          color: _podeLigar 
-                              ? (_localizacaoEnviada ? Colors.green.withOpacity(0.15) : Colors.orange.withOpacity(0.15)) 
-                              : Colors.red.withOpacity(0.15)
-                        ),
+                        border: Border.all(color: corEstado.withOpacity(0.15)),
                       ),
                       child: Text(
                         _statusMensagem,
@@ -284,3 +293,18 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
