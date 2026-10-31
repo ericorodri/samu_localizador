@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
@@ -42,70 +44,86 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       _statusMensagem = "BUSCANDO LOCALIZAÇÃO PELO GPS...";
     });
 
+    Position? posicao;
+
+    // ETAPA 1: Captura direta do GPS (Abordagem híbrida e robusta para Web/App)
     try {
-      // 1. Verifica permissões de localização
+      debugPrint("Iniciando captura do GPS...");
+      
+      // Solicita a permissão diretamente caso o navegador precise
       LocationPermission permissao = await Geolocator.checkPermission();
       if (permissao == LocationPermission.denied) {
         permissao = await Geolocator.requestPermission();
-        if (permissao == LocationPermission.deniedForever || permissao == LocationPermission.denied) {
-          setState(() {
-            _carregando = false;
-            _statusMensagem = "ERRO: PERMISSÃO DE GPS NEGADA.";
-          });
-          return;
-        }
       }
 
-      // 2. Captura a localização atual com suporte ideal para Web
-      Position posicao = await Geolocator.getCurrentPosition(
+      posicao = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 15),
+          timeLimit: Duration(seconds: 25),
         ),
       );
 
-      setState(() {
-        _statusMensagem = "ENVIANDO LOCALIZAÇÃO PARA A CENTRAL...";
-      });
+      debugPrint("GPS Obtido com sucesso: ${posicao.latitude}, ${posicao.longitude}");
+    } on PermissionDeniedException catch (e) {
+      if (mounted) setState(() => _statusMensagem = "ERRO: PERMISSÃO DE GPS NEGADA.");
+      return;
+    } on LocationServiceDisabledException catch (e) {
+      if (mounted) setState(() => _statusMensagem = "ERRO: ATIVE O GPS DO SEU CELULAR.");
+      return;
+    } on TimeoutException catch (e) {
+      if (mounted) setState(() => _statusMensagem = "ERRO: GPS DEMOROU DEMAIS. TENTE DE NOVO.");
+      return;
+    } catch (e) {
+      if (mounted) setState(() => _statusMensagem = "ERRO NO GPS: ${e.toString()}");
+      return;
+    }
 
-      // 3. Envio robusto para o Firebase Realtime Database
+    // ETAPA 2: Envio em Tempo Real para o Firebase via API REST (HTTP POST)
+    try {
+      if (mounted) setState(() => _statusMensagem = "ENVIANDO LOCALIZAÇÃO PARA A CENTRAL...");
+
       final DateTime agora = DateTime.now();
-      final String idChamado = agora.millisecondsSinceEpoch.toString();
-      final String linkGoogleMaps = "https://google.com{posicao.latitude},${posicao.longitude}";
+      final String linkMaps = "https://www.google.com/maps?q=${posicao.latitude},${posicao.longitude}";
 
-      final url = Uri.parse('https://firebaseio.com');
+      final url = Uri.parse('https://samu-localizador-default-rtdb.firebaseio.com/chamados.json');
       
-      await http.post(
+      final resposta = await http.post(
         url,
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json",
         },
         body: json.encode({
           'latitude': posicao.latitude,
           'longitude': posicao.longitude,
+          'precisao': posicao.accuracy,
           'horario': agora.toIso8601String(),
-          'mapa': linkGoogleMaps,
+          'mapa': linkMaps,
+          'origem': kIsWeb ? 'Web Navegador' : 'Aplicativo Nativo',
         }),
       );
 
-      setState(() {
-        _statusMensagem = "LOCALIZAÇÃO ENVIADA! LIGANDO PARA O 192...";
-      });
-
-      // 4. Abre o discador nativo do 192
-      final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
-      if (await canLaunchUrl(telefoneUri)) {
-        await launchUrl(telefoneUri);
+      if (resposta.statusCode != 200) {
+        throw Exception("Código HTTP ${resposta.statusCode}: ${resposta.body}");
       }
 
+      if (mounted) setState(() => _statusMensagem = "LOCALIZAÇÃO ENVIADA COM SUCESSO!");
     } catch (e) {
-      setState(() {
-        _statusMensagem = "NAVEGADOR BLOQUEOU O GPS. VERIFIQUE AS PERMISSÕES.";
-      });
-    } finally {
+      // Falhas de rede com o banco nunca podem impedir a chamada telefônica de emergência
+      if (mounted) setState(() => _statusMensagem = "FALHA AO SALVAR NO BANCO: ${e.toString()}");
+    }
+
+    // ETAPA 3: Disparo Obrigatório do Telefone (Sempre roda independente do banco)
+    if (mounted) {
       setState(() {
         _carregando = false;
+        _statusMensagem = "LIGANDO PARA O 192...";
       });
+    }
+    
+    final Uri telefoneUri = Uri(scheme: 'tel', path: '192');
+    if (await canLaunchUrl(telefoneUri)) {
+      await launchUrl(telefoneUri);
     }
   }
 

@@ -1,12 +1,17 @@
-name: Deploy do App SAMU Nativo
+name: Deploy Unificado SAMU App
 
 on:
   push:
     branches:
       - main
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
-  build-android:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,17 +27,28 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Limpar Builds Antigos
+      - name: Limpar Ambientes
         run: flutter clean
 
-      - name: Obter dependencias
+      - name: Baixar Dependencias
         run: flutter pub get
 
-      - name: Compilar o APK Nativo do Android
+      - name: Compilar o Flutter Web (Site)
+        run: flutter build web --base-href /samu_localizador/
+
+      - name: Compilar o APK (Instalador Android)
         run: flutter build apk --release --no-tree-shake-icons
 
-      - name: Disponibilizar o arquivo APK para Download
+      - name: Upload dos arquivos do Site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Publicar no GitHub Pages
+        uses: actions/deploy-pages@v4
+
+      - name: Disponibilizar o arquivo APK Nativo
         uses: actions/upload-artifact@v4
         with:
-          name: aplicativo-samu-nativo
+          name: aplicativo-samu-final
           path: build/app/outputs/flutter-apk/app-release.apk
