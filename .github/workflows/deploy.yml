@@ -33,6 +33,9 @@ jobs:
       - name: Baixar Dependencias
         run: flutter pub get
 
+      - name: Gerar Ícones Oficiais do SAMU na Nuvem
+        run: flutter pub run flutter_launcher_icons
+
       - name: Compilar o Flutter Web (Site)
         run: flutter build web --base-href /samu_localizador/
 
